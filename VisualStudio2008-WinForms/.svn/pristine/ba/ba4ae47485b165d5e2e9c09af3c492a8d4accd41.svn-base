@@ -1,0 +1,67 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.IO.Ports;
+using System.Linq;
+using System.Text;
+
+namespace Draw.src.Model
+{
+    public class Circle : Shape
+    {
+        #region Constructor
+
+        public Circle(RectangleF rect) : base(rect)
+        {
+        }
+
+        public Circle(RectangleShape rectangle) : base(rectangle)
+        {
+        }
+
+        #endregion
+
+        /// <summary> 
+        /// Проверка за принадлежност на точка point към елипсата.
+        /// Реализацията НЕ съвпада с тази на абстрактния клас Shape, който проверява
+        /// дали точката е в обхващащия правоъгълник на елемента.
+        /// 
+        /// </summary>
+        static double Checkpoint(double h, double k, double x,
+                             double y, double a, double b)
+        {
+            double p = ((double)Math.Pow((x - h), 2)
+                    / (double)Math.Pow(a, 2))
+                   + ((double)Math.Pow((y - k), 2)
+                      / (double)Math.Pow(b, 2));
+
+            return p;
+        }
+
+        public override bool Contains(PointF point)
+        {
+            double p = Checkpoint(Rectangle.X + Width / 2, Rectangle.Y + Height / 2, point.X, point.Y, Width / 2, Height / 2);
+            return p <= 1;
+        }
+        
+
+        /// <summary>
+        /// Частта, визуализираща конкретния примитив.
+        /// </summary>
+        public override void DrawSelf(Graphics grfx)
+        {
+            base.DrawSelf(grfx);
+            FillColor = Color.FromArgb(
+                 Opacity,
+                 FillColor.R,
+                 FillColor.G,
+                 FillColor.B)
+             ;
+
+
+            grfx.FillEllipse(new SolidBrush(FillColor), Rectangle.X, Rectangle.Y, Rectangle.Width, Rectangle.Height);
+            grfx.DrawEllipse(new Pen(StrokeColor, ContourWidth), Rectangle.X, Rectangle.Y, Rectangle.Width, Rectangle.Height);
+
+        }
+    }
+}

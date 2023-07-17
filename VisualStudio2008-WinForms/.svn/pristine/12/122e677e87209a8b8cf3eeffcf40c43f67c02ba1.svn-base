@@ -1,0 +1,707 @@
+﻿using Draw.src.Model;
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.Runtime.Serialization;
+using System.Windows.Forms;
+
+namespace Draw
+{
+    /// <summary>
+    /// Класът, който ще бъде използван при управляване на диалога.
+    /// </summary>
+    public class DialogProcessor : DisplayProcessor
+    {
+        #region Constructor
+
+        public DialogProcessor()
+        {
+        }
+
+        #endregion
+
+        #region Properties
+
+        /// <summary>
+        /// Избран елемент.
+        /// </summary>
+        private List<Shape> selection = new List<Shape>();
+        private List<Shape> copiedElements = new List<Shape>();
+        public List<Shape> Selection
+        {
+            get { return selection; }
+            set { selection = value; }
+        }
+
+        public List<Shape> CopiedElements
+        {
+            get { return copiedElements; }
+            set { copiedElements = value; }
+        }
+
+        /// <summary>
+        /// Дали в момента диалога е в състояние на "влачене" на избрания елемент.
+        /// </summary>
+        private bool isDragging;
+        public bool IsDragging
+        {
+            get { return isDragging; }
+            set { isDragging = value; }
+        }
+
+        /// <summary>
+        /// Последна позиция на мишката при "влачене".
+        /// Използва се за определяне на вектора на транслация.
+        /// </summary>
+        private PointF lastLocation;
+        public PointF LastLocation
+        {
+            get { return lastLocation; }
+            set { lastLocation = value; }
+        }
+
+        #endregion
+
+        /// <summary>
+        /// Добавя примитив - правоъгълник на произволно място върху клиентската област.
+        /// </summary>
+        public void AddRandomRectangle()
+        {
+            Random rnd = new Random();
+            int x = rnd.Next(100, 1000);
+            int y = rnd.Next(100, 600);
+
+            RectangleShape rect = new RectangleShape(new Rectangle(x, y, 100, 200));
+            rect.FillColor = Color.White;
+
+            ShapeList.Add(rect);
+        }
+
+        public void ManageCustomRectangle(Shape rect, PointF point, PointF point1)
+        {
+            //ако дърпаме мишката наляво или нагоре от стартовата точка,
+            //фигурата ще се уголемява съответно надясно и надолу
+
+            if (point.X > point1.X || point.Y > point1.Y)
+            {
+                rect.Width = Math.Abs(point.X - point1.X);
+                rect.Height = Math.Abs(point.Y - point1.Y);
+            }
+            else
+            {
+                rect.Width = point1.X - point.X;
+                rect.Height = point1.Y - point.Y;
+            }
+        }
+
+
+
+        /// <summary>
+        /// Добавя примитив - elipse на произволно място върху клиентската област.
+        /// </summary>
+        public void AddRandomElipse()
+        {
+            Random rnd = new Random();
+            int x = rnd.Next(100, 1000);
+            int y = rnd.Next(100, 600);
+
+            ElipseShape elipse = new ElipseShape(new Rectangle(x, y, 100, 200));
+            elipse.FillColor = Color.White;
+
+            ShapeList.Add(elipse);
+        }
+
+        /// <summary>
+        /// Добавя примитив - star на произволно място върху клиентската област.
+        /// </summary>
+        public void AddRandomStar()
+        {
+            Random rnd = new Random();
+            int x = rnd.Next(100, 1000);
+            int y = rnd.Next(100, 600);
+
+            StarShape star = new StarShape(new Rectangle(x, y, 100, 100));
+            star.FillColor = Color.White;
+
+            ShapeList.Add(star);
+        }
+        /// <summary>
+        /// Добавя примитив - circle на произволно място върху клиентската област.
+        /// </summary>
+
+        public void AddRandomCircle()
+        {
+            Random rnd = new Random();
+            int x = rnd.Next(100, 1000);
+            int y = rnd.Next(100, 600);
+
+            Circle circle = new Circle(new Rectangle(x, y, 200, 200));
+            circle.FillColor = Color.White;
+
+            ShapeList.Add(circle);
+        }
+
+        /// <summary>
+        /// Добавя примитив - point на произволно място върху клиентската област.
+        /// </summary>
+
+        public void AddRandomPoint()
+        {
+            Random rnd = new Random();
+            int x = rnd.Next(100, 1000);
+            int y = rnd.Next(100, 600);
+
+            PointShape point = new PointShape(new Rectangle(x, y, 2, 2));
+            point.FillColor = Color.Black;
+
+            ShapeList.Add(point);
+        }
+
+        /// <summary>
+        /// Добавя примитив - линия на произволно място върху клиентската област.
+        /// </summary>
+
+        public void AddRandomLine()
+        {
+            Random rnd = new Random();
+            int x = rnd.Next(100, 1000);
+            int y = rnd.Next(100, 600);
+
+            Line line = new Line(new Rectangle(x, y, 200, 2));
+            line.FillColor = Color.Black;
+
+            ShapeList.Add(line);
+        }
+
+        /// <summary>
+        /// Добавя примитив - триъгълник на произволно място върху клиентската област.
+        /// </summary>
+
+        public void AddRandomtriangle()
+        {
+            Random rnd = new Random();
+            int x = rnd.Next(100, 1000);
+            int y = rnd.Next(100, 600);
+
+            Triangle triangle = new Triangle(new Rectangle(x, y, 200, 100));
+            triangle.FillColor = Color.White;
+
+            ShapeList.Add(triangle);
+        }
+
+
+        /// <summary>
+        /// Проверява дали дадена точка е в елемента.
+        /// Обхожда в ред обратен на визуализацията с цел намиране на
+        /// "най-горния" елемент т.е. този който виждаме под мишката.
+        /// </summary>
+        /// <param name="point">Указана точка</param>
+        /// <returns>Елемента на изображението, на който принадлежи дадената точка.</returns>
+        public Shape ContainsPoint(PointF point)
+        {
+            for (int i = ShapeList.Count - 1; i >= 0; i--)
+            {
+                if (ShapeList[i].Contains(point))
+                {
+                    //ShapeList[i].FillColor = Color.Red;
+
+                    return ShapeList[i];
+                }
+            }
+            return null;
+        }
+
+        public void AddToShapeList(Shape shape)
+        {
+            ShapeList.Add(shape);
+        }
+
+        /// <summary>
+        /// Транслация на избраният елемент на вектор определен от <paramref name="p>p</paramref>
+        /// </summary>
+        /// <param name="p">Вектор на транслация.</param>
+        public void TranslateTo(PointF p)
+        {
+            if (Selection.Count > 0)
+            {
+                foreach (Shape item in Selection)
+                {
+                    item.Location = new PointF(
+                        item.Location.X + p.X - lastLocation.X,
+                        item.Location.Y + p.Y - lastLocation.Y
+                    );
+
+                }
+                lastLocation = p;
+            }
+            lastLocation = p;
+
+        }
+        //метод, който проверява дали има избран примитив и ако да сетва цвета на контура с избрания от color dialog
+        public void SetStrokeColor(Color color)
+        {
+            if (Selection.Count > 0)
+            {
+                foreach (Shape item in Selection)
+                {
+                    item.StrokeColor = color;
+
+                }
+            }
+        }
+
+        //метод, който проверява дали има избран примитив и ако да сетва цвета с избрания от color dialog
+        public void SetFillColor(Color color)
+        {
+            if (Selection.Count > 0)
+            {
+                foreach (Shape item in Selection)
+                {
+                    item.FillColor = color;
+
+                }
+            }
+        }
+
+        //метод, който проверява дали има избран примитив и ако да променя дебелината на контура
+        public void SetContourWidth(float contourWidth)
+        {
+            if (Selection.Count > 0)
+            {
+                foreach (Shape item in Selection)
+                {
+                    item.ContourWidth = contourWidth;
+
+                }
+            }
+        }
+
+        //метод, който проверява дали има избран примитив и ако да променя прозрачността му
+        public void SetOpacity(int opacity)
+        {
+            if (Selection.Count > 0)
+            {
+                foreach (Shape item in Selection)
+                {
+                    item.Opacity = opacity;
+
+                }
+            }
+        }
+
+        public override void Draw(Graphics grfx)
+        {
+            base.Draw(grfx);
+
+            if (Selection.Count > 0)
+            {
+                float[] dashValues = { 4, 2 };
+                Pen dashPen = new Pen(Color.Black, 3);
+                dashPen.DashPattern = dashValues;
+
+                foreach (Shape item in Selection)
+                {
+                    //g = grfx.Save();
+                    //item.TransformationMatrix.Multiply(grfx.Transform);
+                    //grfx.Transform = item.TransformationMatrix;
+                    item.RotateShape(grfx);
+                    grfx.DrawRectangle(
+                        dashPen,
+                        item.Location.X - 3,
+                        item.Location.Y - 3,
+                        item.Width + 6,
+                        item.Height + 6
+                    );
+                    grfx.ResetTransform();
+
+                }
+            }
+        }
+
+        //Метод, който зачиства селекцията
+        public void ClearSelection()
+        {
+            if (Selection.Count > 0)
+            {
+                Selection.Clear();
+            }
+        }
+
+
+        //Метод, който друпира всички селектирани форми     
+        public void GroupPrimitive()
+        {
+            //ако няма повече от 1 селектирани примитиви, return 
+            if (Selection.Count < 2) return;
+
+            //Дефинириаме 4 променливи - minX, maxY, minY, maxX
+            float minX = float.MaxValue;
+            float maxX = float.MinValue;
+            float minY = float.MaxValue;
+            float maxY = float.MinValue;
+
+            //Изчисляваме обхващащия правоъгълник
+            foreach (Shape item in Selection)
+            {
+                // find the left most primitive and store the x coord
+                if (minX > item.Location.X) minX = item.Location.X;
+                //find the right most primitive and store its right most locations
+                if (minY > item.Location.Y) minY = item.Location.Y;
+                //find the bottom most primitive and store its bottom most location
+                if (maxX < item.Location.X + item.Width) maxX = item.Location.X + item.Width;
+                // find the top most primitive and store the y coord
+                if (maxY < item.Location.Y + item.Height) maxY = item.Location.Y + item.Height;
+
+            }
+
+            GroupShape group = new GroupShape(new Rectangle((int)minX, (int)minY, (int)maxX - (int)minX, (int)maxY - (int)minY));
+            //слагаме елементите от селекцията в листа на groupShape
+            group.SubShapes = Selection;
+            Selection = new List<Shape>
+            {
+                group
+            };
+            ShapeList.Add(group);
+            //Премахваме отделните елементи, които вече са част от groupShape, от ShapeList
+            foreach (Shape item in group.SubShapes)
+            {
+                ShapeList.Remove(item);
+            }
+
+        }
+
+        
+        //Метод, който групира само правоъгълницте   
+        public void GroupRectangles()
+        {
+            //ако няма повече от 1 селектирани примитиви, return 
+            if (Selection.Count < 2) return;
+
+            List<Shape> groupList = new List<Shape>();
+            //Дефинириаме 4 променливи - minX, maxY, minY, maxX
+            float minX = float.MaxValue;
+            float maxX = float.MinValue;
+            float minY = float.MaxValue;
+            float maxY = float.MinValue;
+
+            //Изчисляваме обхващащия правоъгълник
+            foreach (Shape item in Selection)
+            {
+                if (item.GetType().Name.ToString() != "RectangleShape")
+                {
+                    continue;
+                }
+                // find the left most primitive and store the x coord
+                if (minX > item.Location.X) minX = item.Location.X;
+                //find the right most primitive and store its right most locations
+                if (minY > item.Location.Y) minY = item.Location.Y;
+                //find the bottom most primitive and store its bottom most location
+                if (maxX < item.Location.X + item.Width) maxX = item.Location.X + item.Width;
+                // find the top most primitive and store the y coord
+                if (maxY < item.Location.Y + item.Height) maxY = item.Location.Y + item.Height;
+
+                groupList.Add(item);
+            }
+
+            GroupShape group = new GroupShape(new Rectangle((int)minX, (int)minY, (int)maxX - (int)minX, (int)maxY - (int)minY));
+            //слагаме елементите от селекцията в листа на groupShape
+            group.SubShapes = groupList;
+            Selection = new List<Shape>
+            {
+                group
+            };
+            ShapeList.Add(group);
+            //Премахваме отделните елементи, които вече са част от groupShape, от ShapeList
+            foreach (Shape item in groupList)
+            {
+                ShapeList.Remove(item);
+            }
+
+        }
+
+        //Метод за разгрупиране на примитиви
+        public void UngroupPrimitive()
+        {
+            //Спомагателен лист, който използваме да модифицираме Селекцията
+            List<Shape> newShapes = new List<Shape>();
+            if (Selection.Count > 0)
+            {
+                foreach (Shape item in Selection)
+                {
+                    //проверяваме дали селектирания item e groupShape
+                    if (item is GroupShape)
+                    {
+                        GroupShape groupShape = (GroupShape)item;
+                        foreach (Shape shape in groupShape.SubShapes)
+                        {
+                            newShapes.Add(shape);
+                            //добавяме всеки отделен елемент на групата
+                            ShapeList.Add(shape);
+                        }
+                        //премахваме групата
+                        ShapeList.Remove(item);
+
+                    }
+
+                }
+                //зачисваме селекцията и добавяме отделните shapes в нея
+                Selection.Clear();
+                foreach (Shape item in newShapes)
+                {
+                    Selection.Add(item);
+                }
+            }
+        }
+
+        //Метод за BringToFront
+        public void BringToFront()
+        {
+            if (Selection.Count > 0)
+            {
+                foreach (Shape item in Selection)
+                {
+                    ShapeList.Remove(item);
+                    ShapeList.Add(item);
+                }
+            }
+        }
+
+        //Метод за завъртане на примитиви
+        public void RotatePrimitive(int angle)
+        {
+            if (Selection.Count > 0)
+            {
+                foreach (Shape item in Selection)
+                {
+                    Matrix m = new Matrix(
+                        item.TransformationMatrix.Elements[0],
+                        item.TransformationMatrix.Elements[1],
+                        item.TransformationMatrix.Elements[2],
+                        item.TransformationMatrix.Elements[3],
+                        item.TransformationMatrix.Elements[4],
+                        item.TransformationMatrix.Elements[5]
+                    //5 i 6 element - s koordinatite kyde se namira
+                    );
+
+                    //приема ъгъла, под който да се завърти
+                    //и центъра на фигурата
+                    m.RotateAt(
+                        angle,
+                        new PointF(
+                        item.Location.X + item.Width / 2,
+                        item.Location.Y + item.Height / 2
+                    ));
+                    item.ShapeAngle = angle;
+                    item.TransformationMatrix = m;
+                }
+
+            }
+
+        }
+
+
+        //Метод за преоразмеряване на примитиви
+        public void ScalePrimitive(float scaleX, float scaleY)
+        {
+
+            foreach (var item in Selection)
+			{
+                var type = item.GetType().Name.ToString();
+                if (scaleX != -1 )
+				{	
+					item.ScaleWidth(scaleX);
+					
+				}
+				if (scaleX != - 1 && !type.Equals("Line"))
+				{
+					item.ScaleHeight(scaleY);
+				}
+			
+		    }
+
+        }
+
+        //Метод за копираане на примитиви
+        public void CopyPrimitives()
+        {
+            CopiedElements.Clear();
+            if (Selection.Count > 0)
+            {
+                foreach (Shape item in Selection)
+                {
+                    copiedElements.Add(item);
+                }
+            }
+        }
+
+        //Метод, който изтрива примитиви
+        public void CutPrimitives()
+        {
+            if (Selection.Count > 0)
+            {
+                foreach (Shape item in Selection)
+                {
+                    ShapeList.Remove(item);
+                }
+                Selection.Clear();
+            }
+        }
+
+        public void SelectAll()
+        {
+            if (ShapeList.Count > 0)
+            {
+                foreach (Shape item in ShapeList)
+                {
+                    Selection.Add(item);
+                }
+
+            }
+        }
+
+        //Метод за paste на копираните елементи
+        public void PastePrimitives()
+        {
+            Selection.Clear();
+            //проверява дали има копирани елементи
+            if (CopiedElements.Count > 0)
+            {
+                //За всеки копиран елемент проверява типа и създава нов с единствена разлика ->
+                //по-различни стойности за Rectangle.X и Rectangle.Y
+                foreach (Shape item in CopiedElements)
+                {
+                    var type = item.GetType().Name.ToString();
+                    if (type.Equals("RectangleShape"))
+                    {
+                        RectangleShape rect = new RectangleShape(new RectangleF(item.Rectangle.X + 40, item.Rectangle.Y + 40, item.Rectangle.Width, item.Rectangle.Height));
+                        rect.FillColor = item.FillColor;
+                        rect.StrokeColor = item.StrokeColor;
+                        rect.ContourWidth = item.ContourWidth;
+                        rect.ShapeAngle = item.ShapeAngle;
+                        rect.TransformationMatrix = item.TransformationMatrix;
+
+                        ShapeList.Add(rect);
+                        Selection.Add(rect);
+                    }
+                    else if (type.Equals("StarShape"))
+                    {
+                        StarShape star = new StarShape(new RectangleF(item.Rectangle.X + 40, item.Rectangle.Y + 40, item.Rectangle.Width, item.Rectangle.Height));
+                        star.FillColor = item.FillColor;
+                        star.StrokeColor = item.StrokeColor;
+                        star.ContourWidth = item.ContourWidth;
+                        star.ShapeAngle = item.ShapeAngle;
+                        star.TransformationMatrix = item.TransformationMatrix;
+
+                        ShapeList.Add(star);
+                        Selection.Add(star);
+                    }
+                    else if (type.Equals("ElipseShape"))
+                    {
+                        ElipseShape elipse = new ElipseShape(new RectangleF(item.Rectangle.X + 40, item.Rectangle.Y + 40, item.Rectangle.Width, item.Rectangle.Height));
+                        elipse.FillColor = item.FillColor;
+                        elipse.StrokeColor = item.StrokeColor;
+                        elipse.ContourWidth = item.ContourWidth;
+                        elipse.ShapeAngle = item.ShapeAngle;
+                        elipse.TransformationMatrix = item.TransformationMatrix;
+
+                        ShapeList.Add(elipse);
+                        Selection.Add(elipse);
+                    }
+                    else if (type.Equals("Circle"))
+                    {
+                        Circle circle = new Circle(new RectangleF(item.Rectangle.X + 40, item.Rectangle.Y + 40, item.Rectangle.Width, item.Rectangle.Height));
+                        circle.FillColor = item.FillColor;
+                        circle.StrokeColor = item.StrokeColor;
+                        circle.ContourWidth = item.ContourWidth;
+                        circle.ShapeAngle = item.ShapeAngle;
+                        circle.TransformationMatrix = item.TransformationMatrix;
+
+                        ShapeList.Add(circle);
+                        Selection.Add(circle);
+                    }
+                    else if (type.Equals("Line"))
+                    {
+                        Line line = new Line(new RectangleF(item.Rectangle.X + 40, item.Rectangle.Y + 40, item.Rectangle.Width, item.Rectangle.Height));
+                        line.FillColor = item.FillColor;
+                        line.StrokeColor = item.StrokeColor;
+                        line.ContourWidth = item.ContourWidth;
+                        line.ShapeAngle = item.ShapeAngle;
+                        line.TransformationMatrix = item.TransformationMatrix;
+
+                        ShapeList.Add(line);
+                        Selection.Add(line);
+                    }
+                    else if (type.Equals("PointShape"))
+                    {
+                        PointShape point = new PointShape(new RectangleF(item.Rectangle.X + 40, item.Rectangle.Y + 40, item.Rectangle.Width, item.Rectangle.Height));
+                        point.FillColor = item.FillColor;
+                        point.StrokeColor = item.StrokeColor;
+                        point.ContourWidth = item.ContourWidth;
+                        point.ShapeAngle = item.ShapeAngle;
+                        point.TransformationMatrix = item.TransformationMatrix;
+
+                        ShapeList.Add(point);
+                        Selection.Add(point);
+                    }
+                    else if (type.Equals("Triangle"))
+                    {
+                        Triangle triangle = new Triangle(new RectangleF(item.Rectangle.X + 40, item.Rectangle.Y + 40, item.Rectangle.Width, item.Rectangle.Height));
+                        triangle.FillColor = item.FillColor;
+                        triangle.StrokeColor = item.StrokeColor;
+                        triangle.ContourWidth = item.ContourWidth;
+                        triangle.ShapeAngle = item.ShapeAngle;
+                        triangle.TransformationMatrix = item.TransformationMatrix;
+
+                        ShapeList.Add(triangle);
+                        Selection.Add(triangle);
+                    }
+                }
+            }
+        }
+        //Метод за запазване (матрицата не се сериализира)
+        public void WriteShapeListToFile(object obj, string path = null)
+        {
+            Stream stream;
+            IFormatter formatter = new BinaryFormatter();
+            if (path == null)
+            {
+                stream = new FileStream("DrawFile.asd", FileMode.Create, FileAccess.Write, FileShare.None);
+            }
+            else
+            {
+                string preparePath = path + ".asd";
+                stream = new FileStream(preparePath, FileMode.Create);
+
+            }
+            formatter.Serialize(stream, obj);
+            stream.Close();
+        }
+
+        //Метод за отваряне на файл (матрицата не се сериализира)
+        public object LoadFile(string path = null)
+        {
+            object obj;
+
+            Stream stream;
+            IFormatter binaryFormatter = new BinaryFormatter();
+            if (path == null)
+            {
+                stream = new FileStream("DrawFile.asd", FileMode.Open);
+            }
+            else
+            {
+                stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
+            }
+            obj = binaryFormatter.Deserialize(stream);
+            stream.Close();
+            return obj;
+        }
+    }
+
+}

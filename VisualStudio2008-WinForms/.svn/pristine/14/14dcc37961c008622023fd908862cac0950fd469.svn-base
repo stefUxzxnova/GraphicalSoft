@@ -1,0 +1,176 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+
+namespace Draw.src.Model
+{
+    internal class StarShape : Shape
+    {
+        #region Constructor
+
+        public StarShape(RectangleF rect) : base(rect)
+        {
+        }
+
+        public StarShape(RectangleShape rectangle) : base(rectangle)
+        {
+        }
+
+        #endregion
+
+        /// <summary>
+        /// Проверка за принадлежност на точка point към звездата.
+        /// В случая на звездата този метод трябва да бъде пренаписан, защото
+        /// Реализацията НЕ съвпада с тази на абстрактния клас Shape, който проверява
+        /// дали точката е в обхващащия правоъгълник на елемента
+        /// </summary>
+        public class line
+        {
+            public Point p1, p2;
+            public line(Point p1, Point p2)
+            {
+                this.p1 = p1;
+                this.p2 = p2;
+            }
+        }
+
+        static int onLine(line l1, Point p)
+        {
+            // Check whether p is on the line or not
+            if (p.X <= Math.Max(l1.p1.X, l1.p2.X)
+                && p.X <= Math.Min(l1.p1.X, l1.p2.X)
+                && (p.Y <= Math.Max(l1.p1.Y, l1.p2.Y)
+                    && p.Y <= Math.Min(l1.p1.Y, l1.p2.Y)))
+                return 1;
+
+            return 0;
+        }
+
+        //Колинеарност е геометрично свойство на три или повече точки да лежат на една права
+        static int direction(Point a, Point b, Point c)
+        {
+            int val = (b.Y - a.Y) * (c.X - b.X)
+              - (b.X - a.X) * (c.Y - b.Y);
+
+            if (val == 0)
+
+                // Colinear
+                return 0;
+
+            else if (val < 0)
+
+                // Anti-clockwise direction
+                return 2;
+
+            // Clockwise direction
+            return 1;
+        }
+
+        static int isIntersect(line l1, line l2)
+        {
+            // Four direction for two lines and points of other line
+            int dir1 = direction(l1.p1, l1.p2, l2.p1);
+            int dir2 = direction(l1.p1, l1.p2, l2.p2);
+            int dir3 = direction(l2.p1, l2.p2, l1.p1);
+            int dir4 = direction(l2.p1, l2.p2, l1.p2);
+
+            // When intersecting
+            if (dir1 != dir2 && dir3 != dir4)
+                return 1;
+
+            // When p2 of line2 are on the line1
+            if (dir1 == 0 && onLine(l1, l2.p1) == 1)
+                return 1;
+
+            // When p1 of line2 are on the line1
+            if (dir2 == 0 && onLine(l1, l2.p2) == 1)
+                return 1;
+
+            // When p2 of line1 are on the line2
+            if (dir3 == 0 && onLine(l2, l1.p1) == 1)
+                return 1;
+
+            // When p1 of line1 are on the line2
+            if (dir4 == 0 && onLine(l2, l1.p2) == 1)
+                return 1;
+
+            return 0;
+        }
+
+
+        static int checkInside(Point[] poly, int n, Point p)
+        {
+
+            // When polygon has less than 3 edge, it is not polygon
+            if (n < 3)
+                return 0;
+
+            // Create a point at infinity, y is same as point p
+            Point pt = new Point(9999, p.Y);
+            line exline = new line(p, pt);
+            int count = 0;
+            int i = 0;
+            do
+            {
+
+                // Forming a line from two consecutive points of
+                // poly
+                line side = new line(poly[i], poly[(i + 1) % n]);
+                if (isIntersect(side, exline) == 1)
+                {
+
+                    // If side is intersects exline
+                    if (direction(side.p1, p, side.p2) == 0)
+                        return onLine(side, p);
+                    count++;
+                }
+                i = (i + 1) % n;
+            } while (i != 0);
+
+            // When count is odd
+            return count & 1;
+        }
+
+        Point[] points = new Point[10];
+
+        public override bool Contains(PointF point)
+        {
+            if (checkInside(points, 9, new Point((int)point.X, (int)point.Y)) == 1)
+            {
+                return true;
+            };
+            return false;
+        }
+
+        /// <summary>
+        /// Частта, визуализираща конкретния примитив.
+        /// </summary>
+        public override void DrawSelf(Graphics grfx)
+        {
+            base.DrawSelf(grfx);
+            FillColor = Color.FromArgb(
+                Opacity,
+                FillColor.R,
+                FillColor.G,
+                FillColor.B)
+            ;
+
+            points[0] = new Point(50, 0);
+            points[1] = new Point(64, 36);
+            points[2] = new Point(100, 40);
+            points[3] = new Point(76, 64);
+            points[4] = new Point(84, 100);
+            points[5] = new Point(50, 80);
+            points[6] = new Point(16, 100);
+            points[7] = new Point(24, 64);
+            points[8] = new Point(0, 40);
+            points[9] = new Point(36, 36);
+
+            grfx.FillPolygon(new SolidBrush(FillColor), points);
+            grfx.DrawPolygon(new Pen(StrokeColor, ContourWidth), points);
+
+        }
+    }
+}

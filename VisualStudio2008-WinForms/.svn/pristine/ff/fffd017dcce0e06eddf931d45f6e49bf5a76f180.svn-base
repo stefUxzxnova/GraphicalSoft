@@ -1,0 +1,743 @@
+﻿using Draw.src.GUI;
+using Draw.src.Model;
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace Draw
+{
+    ///NEW
+	/// <summary>
+	/// Върху главната форма е поставен потребителски контрол,
+	/// в който се осъществява визуализацията
+	/// </summary>
+	public partial class MainForm : Form
+    {
+        /// <summary>
+        /// Агрегирания диалогов процесор във формата улеснява манипулацията на модела.
+        /// </summary>
+        private DialogProcessor dialogProcessor = new DialogProcessor();
+       
+        //точки, които ще използваме за нашия Custom Rectangle
+        private PointF startPoint;
+        private PointF lastPoint;
+        private Shape shape;
+
+        //
+        private TreeNode lastSelectedNode;
+
+        public MainForm()
+        {
+            InitializeComponent();
+        }
+
+        /// <summary>
+        /// Изход от програмата. Затваря главната форма, а с това и програмата.
+        /// </summary>
+        void ExitToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            Close();
+        }
+
+        /// <summary>
+        /// Събитието, което се прихваща, за да се превизуализира при изменение на модела.
+        /// </summary>
+        void ViewPortPaint(object sender, PaintEventArgs e)
+        {
+            dialogProcessor.ReDraw(sender, e);
+        }
+
+        /// <summary>
+        /// Бутон, който поставя на произволно място правоъгълник със зададените размери.
+        /// Променя се лентата със състоянието и се инвалидира контрола, в който визуализираме.
+        /// </summary>
+       
+        void DrawRectangleSpeedButtonClick(object sender, EventArgs e)
+        {
+            dialogProcessor.AddRandomRectangle();
+
+            statusBar.Items[0].Text = "Последно действие: Рисуване на правоъгълник";
+            BuildTreeView();
+
+            viewPort.Invalidate();
+        }
+
+        /// <summary>
+        /// Бутон, който поставя на произволно място елипса със зададените размери.
+        /// Променя се лентата със състоянието и се инвалидира контрола, в който визуализираме.
+        /// </summary>
+
+        private void addElipse_button_Click(object sender, EventArgs e)
+        {
+
+            dialogProcessor.AddRandomElipse();
+
+            statusBar.Items[0].Text = "Последно действие: Рисуване на елипса";
+            BuildTreeView();
+
+            viewPort.Invalidate(); //kontrol ot windows form
+        }
+        /// <summary>
+        /// Бутон, който поставя на произволно място звезда със зададените размери.
+        /// Променя се лентата със състоянието и се инвалидира контрола, в който визуализираме.
+        /// </summary>
+
+        private void addStar_button_Click(object sender, EventArgs e)
+        {
+            dialogProcessor.AddRandomStar();
+
+            statusBar.Items[0].Text = "Последно действие: Рисуване на star";
+            BuildTreeView();
+
+            viewPort.Invalidate(); //kontrol ot windows form
+        }
+
+        /// <summary>
+        /// Бутон, който поставя на произволно място кръг със зададените размери.
+        /// Променя се лентата със състоянието и се инвалидира контрола, в който визуализираме.
+        /// </summary>
+        private void DrawCircleToolStripButton_Click(object sender, EventArgs e)
+        {
+            dialogProcessor.AddRandomCircle();
+
+            statusBar.Items[0].Text = "Последно действие: Рисуване на кръг";
+            BuildTreeView();
+
+            viewPort.Invalidate(); //kontrol ot windows form
+        }
+
+        /// <summary>
+        /// Бутон, който поставя на произволно място кръг със зададените размери.
+        /// Променя се лентата със състоянието и се инвалидира контрола, в който визуализираме.
+        /// </summary>
+        private void AddPointToolStripButton2_Click(object sender, EventArgs e)
+        {
+            dialogProcessor.AddRandomPoint();
+
+            statusBar.Items[0].Text = "Последно действие: Рисуване на точка";
+            BuildTreeView();
+
+            viewPort.Invalidate();
+        }
+
+        /// <summary>
+        /// Бутон, който поставя на произволно място линия със зададените размери.
+        /// Променя се лентата със състоянието и се инвалидира контрола, в който визуализираме.
+        /// </summary>
+        private void drawLineToolStripButton2_Click(object sender, EventArgs e)
+        {
+            dialogProcessor.AddRandomLine();
+
+            statusBar.Items[0].Text = "Последно действие: Рисуване на линия";
+            BuildTreeView();
+
+            viewPort.Invalidate();
+
+        }
+        /// <summary>
+        /// Бутон, който поставя на произволно място триъгълник със зададените размери.
+        /// Променя се лентата със състоянието и се инвалидира контрола, в който визуализираме.
+        /// </summary>
+        private void toolStripButton2_Click(object sender, EventArgs e)
+        {
+            dialogProcessor.AddRandomtriangle();
+
+            statusBar.Items[0].Text = "Последно действие: Рисуване на триъгълник";
+            BuildTreeView();
+
+            viewPort.Invalidate();
+        }
+
+        /// <summary>
+        /// Прихващане на координатите при натискането на бутон на мишката и проверка (в обратен ред) дали не е
+        /// щракнато върху елемент. Ако е така то той се отбелязва като селектиран и започва процес на "влачене".
+        /// Промяна на статуса и инвалидиране на контрола, в който визуализираме.
+        /// Реализацията се диалогът с потребителя, при който се избира "най-горния" елемент от екрана.
+        /// </summary>
+        void ViewPortMouseDown(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            // проверяваме дали бутона за селекция е натиснат
+            if (pickUpSpeedButton.Checked) {
+                //ако е натиснат бутона за AddRandomRectangle или AddCustomElipse ги изключваме
+                AddCustomRectangleToolStripButton2.Checked = false;
+                AddCustomElipse.Checked = false;
+
+                //запазваме формите, в които сме натиснали
+                var temp = dialogProcessor.ContainsPoint(e.Location);
+                
+                if (temp != null)
+                {
+                    //ако вече са селектирани -> махаме ги
+                    if (dialogProcessor.Selection.Contains(temp))
+                    {
+                        dialogProcessor.Selection.Remove(temp);
+                    }
+                    //ако не са селектирани -> добавяме ги
+                    else
+                    {
+                        dialogProcessor.Selection.Add(temp);
+                    }
+                    statusBar.Items[0].Text = "Последно действие: Селекция на примитив";
+                    dialogProcessor.IsDragging = true;
+                    dialogProcessor.LastLocation = e.Location;
+                    viewPort.Invalidate();
+                }
+            }
+            if (AddCustomRectangleToolStripButton2.Checked)
+            {
+                //ако е натиснат бутона за AddCustomElipse или AddCustomStar го изключваме
+                customStarButton.Checked= false;
+                AddCustomElipse.Checked = false;
+                dialogProcessor.IsDragging = true;
+                //start point -> точката, в която е натисната мишката
+                startPoint = e.Location;
+                //инициализираме динамичния правоъгълник
+                shape = new RectangleShape(new RectangleF(startPoint.X, startPoint.Y, 0, 0));
+                shape.FillColor = Color.White;
+                dialogProcessor.AddToShapeList(shape);
+                BuildTreeView();
+            }
+            if (AddCustomElipse.Checked)
+            {
+                customStarButton.Checked = false;
+                dialogProcessor.IsDragging = true;
+                //start point -> точката, в която е натисната мишката
+                startPoint = e.Location;
+                shape = new ElipseShape(new RectangleF(startPoint.X, startPoint.Y, startPoint.X, startPoint.Y));
+                shape.FillColor = Color.White;
+                dialogProcessor.AddToShapeList(shape);
+                BuildTreeView();
+            }
+            if (customStarButton.Checked)
+            {
+                dialogProcessor.IsDragging = true;
+                //start point -> точката, в която е натисната мишката
+                startPoint = e.Location;
+                shape = new StarShape(new RectangleF(startPoint.X, startPoint.Y, startPoint.X, startPoint.Y));
+                shape.FillColor = Color.White;
+                dialogProcessor.AddToShapeList(shape);
+                BuildTreeView();
+            }
+
+        }
+
+        /// <summary>
+        /// Прихващане на преместването на мишката.
+        /// Ако сме в режм на "влачене", то избрания елемент се транслира.
+        /// </summary>
+        void ViewPortMouseMove(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            if (dialogProcessor.IsDragging && pickUpSpeedButton.Checked == true) {
+                if (dialogProcessor.Selection != null) statusBar.Items[0].Text = "Последно действие: Влачене";
+                dialogProcessor.TranslateTo(e.Location);
+                viewPort.Invalidate();
+            }
+            if (AddCustomRectangleToolStripButton2.Checked && dialogProcessor.IsDragging == true)
+            {
+                //докато мишката се движи, lastPoint се променя
+                lastPoint = e.Location;
+                dialogProcessor.ManageCustomRectangle(shape, startPoint, lastPoint);
+                viewPort.Invalidate();
+            }
+            //проверяваме дали е натиснат бутона за CustomRectangle или бутона за CustomLine и дали сме в режим на влачене
+            if (AddCustomElipse.Checked && dialogProcessor.IsDragging == true)
+            {
+                //докато мишката се движи, lastPoint се променя
+                lastPoint = e.Location;
+                dialogProcessor.ManageCustomRectangle(shape, startPoint, lastPoint);
+                viewPort.Invalidate();
+            }
+            if (customStarButton.Checked && dialogProcessor.IsDragging == true)
+            {
+                //докато мишката се движи, lastPoint се променя
+                lastPoint = e.Location;
+                dialogProcessor.ManageCustomRectangle(shape, startPoint, lastPoint);
+                viewPort.Invalidate();
+            }
+
+
+        }
+
+        /// <summary>
+        /// Прихващане на отпускането на бутона на мишката.
+        /// Излизаме от режим "влачене".
+        /// </summary>
+        void ViewPortMouseUp(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            dialogProcessor.IsDragging = false;
+            if ((AddCustomRectangleToolStripButton2.Checked || AddCustomElipse.Checked || customStarButton.Checked ) && dialogProcessor.IsDragging == true)
+            {
+                dialogProcessor.IsDragging = false;
+                //окончателно lastPoint
+                lastPoint = e.Location;
+            }
+        }
+
+        //Сменяме цвета на контура на избран примитив
+        private void button1_Click_1(object sender, EventArgs e)
+        {
+            statusBar.Items[0].Text = "Последно действие: Промяна на цвета на контура";
+            if (colorDialog1.ShowDialog() == DialogResult.OK) //dialog result -> можем да хванем какво е кликнал потребителя
+            {
+                dialogProcessor.SetStrokeColor(colorDialog1.Color);
+            }
+            viewPort.Invalidate();
+        }
+
+
+        //Смяна на цвета на избран примитив
+        private void toolStripButton1_Click_1(object sender, EventArgs e)
+        {
+            statusBar.Items[0].Text = "Последно действие: Промяна на цвета на избрания примитив";
+            if (colorDialog1.ShowDialog() == DialogResult.OK)
+            {
+                dialogProcessor.SetFillColor(colorDialog1.Color);
+            }
+            viewPort.Invalidate();
+        }
+
+        //Промяна на дебелината на контура на избран примитив с trackBar 
+        //Стойността на trackBar се предава на numericUpDown1 и се изписва
+        private void trackBar1_Scroll(object sender, EventArgs e)
+        {
+            numericUpDown1.Value = trackBar1.Value;
+            statusBar.Items[0].Text = "Последно действие: Промяна на дебелината на контура";
+            dialogProcessor.SetContourWidth(trackBar1.Value);
+            viewPort.Invalidate();
+        }
+
+        //Промяна на дебелината на контура на избран примитив с numericUpDown
+        private void numericUpDown1_ValueChanged(object sender, EventArgs e)
+        {
+            statusBar.Items[0].Text = "Последно действие: Промяна на дебелината на контура";
+            dialogProcessor.SetContourWidth((float)numericUpDown1.Value);
+            viewPort.Invalidate();
+        }
+
+        //Промяна на прозрачността на избран примитив с trackBar
+        private void trackBar2_Scroll(object sender, EventArgs e)
+        {
+            dialogProcessor.SetOpacity((int)trackBar2.Value);
+            viewPort.Invalidate();
+        }
+
+        //неизползваем
+        private void AddCustomRectangleToolStripButton2_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        //Взима стойността за rotationAngle
+        private void rotationNumericUpDown2_ValueChanged(object sender, EventArgs e)
+        {
+            dialogProcessor.RotatePrimitive((int)rotationNumericUpDown2.Value);
+            viewPort.Invalidate();
+        }
+
+        //Ако disable бутона за селекция - да се зачиства списъка със селектнатите форми
+        private void pickUpSpeedButton_Click(object sender, EventArgs e)
+        {
+            if (pickUpSpeedButton.Enabled)
+            {
+                dialogProcessor.ClearSelection();
+            }
+            viewPort.Invalidate();
+        }
+        //При натискане групира елементите
+        private void groupToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            dialogProcessor.GroupPrimitive();
+            statusBar.Items[0].Text = "Последно действие: Групиране";
+            BuildTreeView();
+            viewPort.Invalidate();
+        }
+
+        //При натискане разгрупира елементите
+        private void ungroupToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            dialogProcessor.UngroupPrimitive();
+            statusBar.Items[0].Text = "Последно действие: Разгрупиране";
+            BuildTreeView();
+            viewPort.Invalidate();
+        }
+
+        //Метод, който използваме да се добавя нов node към treeView
+        private void BuildTreeView()
+        {
+            //Зачистваме tree view-то
+            treeShapes.Nodes.Clear(); // Clear existing nodes
+
+            //За всяка форма в shapeList създаваме node в tree View и го добавяме 
+            foreach (Shape shape in dialogProcessor.ShapeList)
+            {
+                TreeNode node = CreateTreeNode(shape);
+                treeShapes.Nodes.Add(node);
+            }
+        }
+
+        // Метод за създаване на node
+        private TreeNode CreateTreeNode(Shape shape)
+        {
+            TreeNode node;
+            //проверяваме дали формата е съставна
+            if (shape is GroupShape)
+            {
+                GroupShape groupShape = (GroupShape)shape;
+                if (groupShape.Name != null)
+                {
+                    node = new TreeNode(groupShape.Name);
+                }
+                else
+                {
+                    node = new TreeNode(groupShape.ToString());
+                }
+                //добавяме childNodes на съставната форма
+                foreach (Shape childShape in groupShape.SubShapes)
+                {
+                    TreeNode childNode = CreateTreeNode(childShape);
+                    if (childNode.Name != null)
+                    {
+                        node.Nodes.Add(childNode.Name);
+                    }
+                    else
+                    {
+                        node.Nodes.Add(childNode);
+                    }
+                }
+            }
+            else
+            {
+                //ако не е съставна -> добавяме формата като node
+                if (shape.Name != null)
+                {
+                    node = new TreeNode(shape.Name);
+                }
+                else
+                {
+                    node = new TreeNode(shape.ToString());
+                }
+            }
+            return node;
+        }
+
+        //Прихваща селектирания индекс (кяо форма сме избрали)
+        private void treeShapes_AfterSelect(object sender, TreeViewEventArgs e)
+        {
+            //ако select button-a е натиснат, го изключваме
+            pickUpSpeedButton.Checked = false;
+            //изчисваме досегашната селекция
+            dialogProcessor.ClearSelection();
+            //проверяваме дали селектираната форма е childNode
+            if (treeShapes.SelectedNode.Parent != null)
+            {
+                //ako e chilNode, в селекцията вкарваме родителския node 
+                int parentNode = treeShapes.SelectedNode.Parent.Index;
+                //лсагаме го в LastSelectedNode, за да може да го използваме при Focus(Leave) 
+                lastSelectedNode = treeShapes.SelectedNode.Parent;
+                //добавяме го в селекцията
+                dialogProcessor.Selection.Add(dialogProcessor.ShapeList[parentNode]);
+
+            }
+            else
+            {
+                //same
+                int node = treeShapes.SelectedNode.Index;
+                lastSelectedNode = treeShapes.SelectedNode;
+                dialogProcessor.Selection.Add(dialogProcessor.ShapeList[node]);
+            }
+            viewPort.Invalidate();
+        }
+
+        //Ако натиснем извън tree view -> да успеен да запазим последното селектирано
+        private void treeShapes_Leave(object sender, EventArgs e)
+        {
+            treeShapes.SelectedNode = lastSelectedNode;
+        }
+
+        //ContextMenu на treeView
+        private void contextMenuStrip1_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            //Зачистваме contextMenu
+            contextMenuStrip1.Items.Clear();
+            //Проверяваме дали имаме селектиран елемент
+            if (dialogProcessor.Selection.Count > 0)
+            {
+                contextMenuStrip1.Items.Add(
+                "Change color",
+                null,
+                new EventHandler(this.toolStripButton1_Click_1)
+                );
+                contextMenuStrip1.Items.Add(
+                "Change contour color",
+                null,
+                new EventHandler(this.button1_Click_1)
+                );
+                contextMenuStrip1.Items.Add(
+                "Cut",
+                null,
+                new EventHandler(this.cutToolStripButton1_Click)
+                );
+                contextMenuStrip1.Items.Add(
+                "Copy",
+                null,
+                new EventHandler(this.copyToolStripButton1_Click)
+                );
+                contextMenuStrip1.Items.Add(
+                "Bring to front",
+                null,
+                new EventHandler(this.bringToFrontToolStripMenuItem_Click)
+                );
+                contextMenuStrip2.Items.Add(
+                "Rename",
+                null,
+                new EventHandler(this.NameButton_Click)
+                );
+            }
+            else
+            {
+                contextMenuStrip1.Items.Add(
+                "New Rectangle",
+                null,
+                new EventHandler(this.DrawRectangleSpeedButtonClick));
+                contextMenuStrip1.Items.Add(
+                "New Line",
+                null,
+                new EventHandler(this.drawLineToolStripButton2_Click));
+                contextMenuStrip1.Items.Add(
+                "New Circle",
+                null,
+                new EventHandler(this.DrawCircleToolStripButton_Click));
+                contextMenuStrip1.Items.Add(
+                "New Elipse",
+                null,
+                new EventHandler(this.addElipse_button_Click));
+                contextMenuStrip1.Items.Add(
+                "New Star",
+                null,
+                new EventHandler(this.addStar_button_Click));
+                contextMenuStrip1.Items.Add(
+                "New Triangle",
+                null,
+                new EventHandler(this.toolStripButton2_Click));
+                
+            };
+        }
+
+        //Добавяне на клавишни комбинации
+        private void viewPort_KeyDown(object sender, KeyEventArgs e)
+        {
+            //group
+            if (e.KeyCode == Keys.G && e.Control == true)
+            {
+                dialogProcessor.GroupPrimitive();
+            }
+            //ungroup
+            if (e.KeyCode == Keys.U && e.Control == true)
+            {
+                dialogProcessor.UngroupPrimitive();
+            }
+            //copy
+            if (e.KeyCode == Keys.C && e.Control == true)
+            {
+                dialogProcessor.CopyPrimitives();
+            }
+            //paste
+            if (e.KeyCode == Keys.V && e.Control == true)
+            {
+                dialogProcessor.PastePrimitives();
+            }
+            //paste
+            if (e.KeyCode == Keys.X && e.Control == true)
+            {
+                dialogProcessor.CutPrimitives();
+            }
+            //select all
+            if (e.KeyCode == Keys.A && e.Control == true)
+            {
+                dialogProcessor.SelectAll();
+            }
+            //select all
+            if (e.KeyCode == Keys.R && e.Control == true)
+            {
+                dialogProcessor.ClearSelection();
+            }
+            BuildTreeView();
+            viewPort.Invalidate();
+        }
+
+        //Бутон за помощ
+        private void helpToolStripButton_Click(object sender, EventArgs e)
+        {
+            HelpForm helpForm = new HelpForm();
+            helpForm.ShowDialog();
+
+        }
+
+        private void copyToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            dialogProcessor.CopyPrimitives();
+            statusBar.Items[0].Text = "Последно действие: Копиране.";
+            viewPort.Invalidate();
+        }
+
+        private void pasteToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            dialogProcessor.PastePrimitives();
+            statusBar.Items[0].Text = "Последно действие: Поставяне.";
+            viewPort.Invalidate();
+        }
+
+        private void cutToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            dialogProcessor.CutPrimitives();
+            statusBar.Items[0].Text = "Последно действие: Изтриване.";
+            viewPort.Invalidate();
+        }
+
+        private void cutToolStripButton1_Click(object sender, EventArgs e)
+        {
+            dialogProcessor.CutPrimitives();
+            statusBar.Items[0].Text = "Последно действие: Изтриване.";
+            viewPort.Invalidate();
+        }
+
+        private void copyToolStripButton1_Click(object sender, EventArgs e)
+        {
+            dialogProcessor.CopyPrimitives();
+            statusBar.Items[0].Text = "Последно действие: Копиране.";
+            viewPort.Invalidate();
+        }
+
+        private void pasteToolStripButton1_Click(object sender, EventArgs e)
+        {
+            dialogProcessor.PastePrimitives();
+            statusBar.Items[0].Text = "Последно действие: Поставяне.";
+            viewPort.Invalidate();
+        }
+
+        //Oтваря диалог за запазване на файл
+        private void saveToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            saveFileDialog1.Title = "Save";
+
+            if (saveFileDialog1.ShowDialog() == DialogResult.OK)
+            {
+                dialogProcessor.WriteShapeListToFile(dialogProcessor.ShapeList, saveFileDialog1.FileName);
+            }
+            statusBar.Items[0].Text = "Последно действие: Записване на файл.";
+        }
+        //Oтваря диалог за запазване на файл
+        private void saveToolStripButton1_Click(object sender, EventArgs e)
+        {
+            saveFileDialog1.Title = "Save";
+
+            if (saveFileDialog1.ShowDialog() == DialogResult.OK)
+            {
+                dialogProcessor.WriteShapeListToFile(dialogProcessor.ShapeList, saveFileDialog1.FileName);
+            }
+            statusBar.Items[0].Text = "Последно действие: Записване на файл.";
+        }
+
+        //Oтваря диалог за OpenFile
+        private void openToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (openFileDialog1.ShowDialog() == DialogResult.OK)
+            {
+                dialogProcessor.ShapeList = (List<Shape>)dialogProcessor.LoadFile(openFileDialog1.FileName);
+                dialogProcessor.ClearSelection();
+            }
+            statusBar.Items[0].Text = "Последно действие: Отваряне на файл.";
+            BuildTreeView();
+            viewPort.Invalidate();
+        }
+
+        //Oтваря диалог за OpenFile
+        private void openToolStripButton1_Click(object sender, EventArgs e)
+        {
+            if (openFileDialog1.ShowDialog() == DialogResult.OK)
+            {
+                dialogProcessor.ShapeList = (List<Shape>)dialogProcessor.LoadFile(openFileDialog1.FileName); 
+                dialogProcessor.ClearSelection();
+            }
+            statusBar.Items[0].Text = "Последно действие: Отваряне на файл.";
+           
+            BuildTreeView();
+            viewPort.Invalidate();
+        }
+
+        //Отваря форма за преоразмеряване
+        private void button1_Click(object sender, EventArgs e)
+        {
+            ResizeForm resizeForm = new ResizeForm(dialogProcessor);
+            resizeForm.ShowDialog();
+            viewPort.Invalidate();
+        }
+
+        //Context menu на viewPort
+        private void contextMenuStrip2_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            //Зачистваме contextMenu
+            contextMenuStrip2.Items.Clear();
+            //Проверяваме дали имаме селектиран елемент
+            if (dialogProcessor.Selection.Count > 0)
+            {
+                contextMenuStrip2.Items.Add(
+                "Cut",
+                null,
+                new EventHandler(this.cutToolStripButton1_Click)
+                );
+                contextMenuStrip2.Items.Add(
+                "Copy",
+                null,
+                new EventHandler(this.copyToolStripButton1_Click)
+                );
+                contextMenuStrip2.Items.Add(
+                "Bring to front",
+                null,
+                new EventHandler(this.bringToFrontToolStripMenuItem_Click)
+                );
+                
+            }
+            if (dialogProcessor.CopiedElements.Count > 0)
+            {
+                contextMenuStrip2.Items.Add(
+                "Paste",
+                null,
+                new EventHandler(this.pasteToolStripButton1_Click)
+                );
+            }
+        }
+
+        //Групиране на правоъгълници
+        private void onlyRectanglesToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            dialogProcessor.GroupRectangles();
+            statusBar.Items[0].Text = "Последно действие: Групиране на правоъгълници";
+            viewPort.Invalidate();
+        }
+
+        //Бутон за bringToFront
+        private void bringToFrontToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            dialogProcessor.BringToFront();
+            viewPort.Invalidate();
+        }
+
+        //Бутон за преименуване
+        private void NameButton_Click(object sender, EventArgs e)
+        {
+            NameForm nameForm = new NameForm(dialogProcessor);
+            nameForm.ShowDialog();
+            BuildTreeView();
+            viewPort.Invalidate();
+        }
+
+        //Отваря форма за помощ
+        private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            HelpForm helpForm = new HelpForm();
+            helpForm.ShowDialog();
+        }
+    }
+}

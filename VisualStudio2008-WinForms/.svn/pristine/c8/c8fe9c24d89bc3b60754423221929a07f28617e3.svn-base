@@ -1,0 +1,338 @@
+﻿using Draw.src.Model;
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Net;
+
+namespace Draw
+{
+	/// <summary>
+	/// Класът, който ще бъде използван при управляване на диалога.
+	/// </summary>
+	public class DialogProcessor : DisplayProcessor
+	{
+		#region Constructor
+		
+		public DialogProcessor()
+		{
+		}
+
+        #endregion
+
+        #region Properties
+
+        /// <summary>
+        /// Избран елемент.
+        /// </summary>
+        private List<Shape> selection = new List<Shape>();
+        private List<Shape> copiedElements = new List<Shape>();
+        public List<Shape> Selection
+        {
+            get { return selection; }
+            set { selection = value; }
+        }
+
+        public List<Shape> CopiedElements
+        {
+            get { return copiedElements; }
+            set { copiedElements = value; }
+        }
+
+        /// <summary>
+        /// Дали в момента диалога е в състояние на "влачене" на избрания елемент.
+        /// </summary>
+        private bool isDragging;
+		public bool IsDragging {
+			get { return isDragging; }
+			set { isDragging = value; }
+		}
+		
+		/// <summary>
+		/// Последна позиция на мишката при "влачене".
+		/// Използва се за определяне на вектора на транслация.
+		/// </summary>
+		private PointF lastLocation;
+		public PointF LastLocation {
+			get { return lastLocation; }
+			set { lastLocation = value; }
+		}
+		
+		#endregion
+		
+		/// <summary>
+		/// Добавя примитив - правоъгълник на произволно място върху клиентската област.
+		/// </summary>
+		public void AddRandomRectangle()
+		{
+			Random rnd = new Random();
+			int x = rnd.Next(100,1000);
+			int y = rnd.Next(100,600);
+			
+			RectangleShape rect = new RectangleShape(new Rectangle(x,y,100,200));
+			rect.FillColor = Color.White;
+
+			ShapeList.Add(rect);
+		}
+
+        public void ManageCustomRectangle(Shape rect, PointF point, PointF point1)
+        {
+            //ако дърпаме мишката наляво или нагоре от стартовата точка,
+            //фигурата ще се уголемява съответно надясно и надолу
+
+            if (point.X > point1.X || point.Y > point1.Y)
+            {
+                rect.Width = Math.Abs(point.X - point1.X);
+                rect.Height = Math.Abs(point.Y - point1.Y);
+            }
+            else
+            {
+                rect.Width = point1.X - point.X;
+                rect.Height = point1.Y - point.Y;
+            }
+        }
+
+       
+
+        /// <summary>
+        /// Добавя примитив - elipse на произволно място върху клиентската област.
+        /// </summary>
+        public void AddRandomElipse()
+        {
+            Random rnd = new Random();
+            int x = rnd.Next(100, 1000);
+            int y = rnd.Next(100, 600);
+
+            ElipseShape elipse = new ElipseShape(new Rectangle(x, y, 100, 200));
+            elipse.FillColor = Color.White;
+
+            ShapeList.Add(elipse);
+        }
+
+        /// <summary>
+        /// Добавя примитив - star на произволно място върху клиентската област.
+        /// </summary>
+        public void AddRandomStar()
+        {
+            Random rnd = new Random();
+            int x = rnd.Next(100, 1000);
+            int y = rnd.Next(100, 600);
+
+            StarShape star = new StarShape(new Rectangle(x, y, 100, 200));
+            star.FillColor = Color.White;
+
+            ShapeList.Add(star);
+        }
+        /// <summary>
+        /// Добавя примитив - circle на произволно място върху клиентската област.
+        /// </summary>
+        
+        public void AddRandomCircle()
+        {
+            Random rnd = new Random();
+            int x = rnd.Next(100, 1000);
+            int y = rnd.Next(100, 600);
+
+            Circle circle = new Circle(new Rectangle(x, y, 200, 200));
+            circle.FillColor = Color.White;
+
+            ShapeList.Add(circle);
+        }
+
+        /// <summary>
+        /// Добавя примитив - point на произволно място върху клиентската област.
+        /// </summary>
+
+        public void AddRandomPoint()
+        {
+            Random rnd = new Random();
+            int x = rnd.Next(100, 1000);
+            int y = rnd.Next(100, 600);
+
+            PointShape point = new PointShape(new Rectangle(x, y, 2, 2));
+            point.FillColor = Color.Black; 
+
+            ShapeList.Add(point);
+        }
+
+        /// <summary>
+        /// Добавя примитив - линия на произволно място върху клиентската област.
+        /// </summary>
+
+        public void AddRandomLine()
+        {
+            Random rnd = new Random();
+            int x = rnd.Next(100, 1000);
+            int y = rnd.Next(100, 600);
+           
+            
+
+            Line line = new Line(new Rectangle(x, y, 200, 1));
+            line.FillColor = Color.Black;
+
+            ShapeList.Add(line);
+        }
+
+        /// <summary>
+        /// Проверява дали дадена точка е в елемента.
+        /// Обхожда в ред обратен на визуализацията с цел намиране на
+        /// "най-горния" елемент т.е. този който виждаме под мишката.
+        /// </summary>
+        /// <param name="point">Указана точка</param>
+        /// <returns>Елемента на изображението, на който принадлежи дадената точка.</returns>
+        public Shape ContainsPoint(PointF point)
+		{
+			for(int i = ShapeList.Count - 1; i >= 0; i--){
+				if (ShapeList[i].Contains(point)){
+					//ShapeList[i].FillColor = Color.Red;
+						
+					return ShapeList[i];
+				}	
+			}
+			return null;
+		}
+
+         public void AddToShapeList(Shape shape)
+        {
+			ShapeList.Add(shape);
+        }
+		
+		/// <summary>
+		/// Транслация на избраният елемент на вектор определен от <paramref name="p>p</paramref>
+		/// </summary>
+		/// <param name="p">Вектор на транслация.</param>
+		public void TranslateTo(PointF p)
+		{
+            if (Selection.Count > 0)
+            {
+                foreach (Shape item in Selection)
+                {
+                    item.Location = new PointF(
+                        item.Location.X + p.X - lastLocation.X,
+                        item.Location.Y + p.Y - lastLocation.Y
+                    );
+
+                }
+                lastLocation = p;
+            }
+            lastLocation = p;
+			
+		}
+		//метод, който проверява дали има избран примитив и ако да сетва цвета на контура с избрания от color dialog
+        public void SetStrokeColor(Color color)
+        {
+        if (Selection.Count > 0)
+        {
+            foreach (Shape item in Selection)
+            {
+                item.StrokeColor = color;
+
+            }
+        }
+    }
+
+        //метод, който проверява дали има избран примитив и ако да сетва цвета с избрания от color dialog
+        public void SetFillColor(Color color)
+        {
+            if (Selection.Count > 0)
+            {
+                foreach (Shape item in Selection)
+                {
+                    item.FillColor = color;
+
+                }
+            }
+        }
+
+        //метод, който проверява дали има избран примитив и ако да променя дебелината на контура
+        public void SetContourWidth(float contourWidth)
+        {
+            if (Selection.Count > 0)
+            {
+                foreach (Shape item in Selection)
+                {
+                    item.ContourWidth = contourWidth;
+
+                }
+            }
+        }
+
+        //метод, който проверява дали има избран примитив и ако да променя прозрачността му
+        public void SetOpacity(int opacity)
+        {
+            if (Selection.Count > 0)
+            {
+                foreach (Shape item in Selection)
+                {
+                    item.Opacity = opacity;
+
+                }
+            }
+        }
+
+        //public override void Draw(Graphics grfx)
+        //{
+        //    base.Draw(grfx);
+        //    if (Selection.Count > 0)
+        //    {
+        //        float[] dashValues = { 4, 2 };
+        //        Pen dashPen = new Pen(Color.Black, 3);
+        //        dashPen.DashPattern = dashValues;
+
+        //        GraphicsState g;
+        //        foreach (Shape item in Selection)
+        //        {
+        //            g = grfx.Save();
+        //            item.TransformationMatrix.Multiply(grfx.Transform);
+        //            //grfx.Transform = item.TransformationMatrix;
+        //            grfx.DrawRectangle(
+        //                dashPen,
+        //                item.Location.X - 3,
+        //                item.Location.Y - 3,
+        //                item.Width + 6,
+        //                item.Height + 6
+        //            );
+        //            grfx.Restore(g);
+
+        //        }
+        //    }
+        //}
+        
+        
+        //Calculate the Rectangle of the GroupPrimitive    
+        public void GroupPrimitive()
+        {
+            //ако няма повече от 1 селектирани примитиви, return 
+            if (Selection.Count < 2) return;
+
+            //Define 4 variables - minX, maxY, minY, maxX
+            float minX = float.MaxValue;
+            float maxX = float.MinValue;
+            float minY = float.MaxValue;
+            float maxY = float.MinValue;
+
+            foreach (Shape item in Selection)
+            {
+                // find the left most primitive and store the x coord
+                if (minX > item.Location.X) minX = item.Location.X;
+                //find the right most primitive and store its right most locations
+                if (minY > item.Location.X) minY = item.Location.Y;
+                //find the bottom most primitive and store its bottom most location
+                if (maxX < item.Location.X + item.Width) maxX = item.Location.X + item.Width;
+                // find the top most primitive and store the y coord
+                if (maxY < item.Location.Y + item.Height) maxY = item.Location.Y + item.Height;
+            }
+
+            GroupShape group = new GroupShape(new Rectangle((int)minX, (int)minY, (int)maxX - (int)minX, (int)maxY - (int)minY));
+            group.SubShapes = Selection;
+            Selection = new List<Shape>
+            {
+                group
+            };
+
+            ShapeList.Add(group);
+
+        }
+
+    }
+}
